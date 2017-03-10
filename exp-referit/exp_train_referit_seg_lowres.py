@@ -4,6 +4,7 @@ import sys
 import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 import tensorflow as tf
 import numpy as np
+import time
 
 from models import text_objseg_model as segmodel
 from util import data_reader
@@ -143,6 +144,7 @@ cls_loss_avg = 0
 avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg = 0, 0, 0
 decay = 0.99
 
+start_time = time.strftime("%d %b %H:%M:%S")
 for n_iter in range(max_iter):
     # Read one batch
     batch = reader.read_batch()
@@ -170,6 +172,7 @@ for n_iter in range(max_iter):
           % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
     print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
           % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
+    print('\tstart_time = %s, current_time = %s' % (start_time, time.strftime('%d %b %H:%M:%S')))
 
     # Save snapshot
     if (n_iter+1) % snapshot == 0 or (n_iter+1) >= max_iter:

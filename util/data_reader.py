@@ -27,7 +27,7 @@ def run_prefetch(prefetch_queue, folder_name, prefix, num_batch, shuffle):
         n_batch_prefetch = (n_batch_prefetch + 1) % num_batch
 
 class DataReader:
-    def __init__(self, folder_name, prefix, shuffle=True, prefetch_num=8):
+    def __init__(self, folder_name, prefix, shuffle=True, prefetch_num=20):
         self.folder_name = folder_name
         self.prefix = prefix
         self.shuffle = shuffle

@@ -4,6 +4,7 @@ import sys
 import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 import tensorflow as tf
 import numpy as np
+import time
 
 print(tf.__version__)
 from models import text_objseg_model as segmodel
@@ -63,7 +64,7 @@ imcrop_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 3])
 label_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 1])
 
 # Outputs
-scores = segmodel.text_objseg_upsample32s(text_seq_batch, imcrop_batch,
+scores = segmodel.text_objseg_upsample32s_global_context(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=vgg_dropout, mlp_dropout=mlp_dropout)
 
@@ -148,6 +149,7 @@ cls_loss_avg = 0
 avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg = 0, 0, 0
 decay = 0.99
 
+start_time = time.strftime('time.strftime("%d %b %H:%M:%S")')
 for n_iter in range(max_iter):
     # Read one batch
     batch = reader.read_batch()
@@ -175,6 +177,7 @@ for n_iter in range(max_iter):
           % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
     print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
           % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
+    print('\tstart_time = %s, current_time = %s' % (start_time, time.strftime('%d %b %H:%M:%S')))
 
     # Save snapshot
     if (n_iter+1) % snapshot == 0 or (n_iter+1) >= max_iter:

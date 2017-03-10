@@ -28,7 +28,7 @@ mlp_hidden_dims = 500
 text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
 imcrop_batch = tf.placeholder(tf.float32, [N, 512, 512, 3])
 
-_ = segmodel.text_objseg_upsample32s(text_seq_batch, imcrop_batch,
+_ = segmodel.text_objseg_upsample32s_global_context(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=False, mlp_dropout=False)
 

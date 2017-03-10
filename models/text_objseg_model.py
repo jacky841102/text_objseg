@@ -150,3 +150,20 @@ def text_objseg_upsample32s(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
 
     return upsample32s
 
+def text_objseg_upsample32s_global_context(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
+    lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
+
+    mlp_l2 = text_objseg_full_conv_global_context(text_seq_batch, imcrop_batch, num_vocab,
+        embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout)
+
+    # MLP Classifier over concatenate feature
+    with tf.variable_scope('classifier'):
+        # bilinear upsampling (no bias)
+        #upsample32s = deconv('upsample32s', mlp_l2, kernel_size=64,
+        #    stride=32, output_dim=1, bias_term=False)
+        upsample8s = deconv('upsample8s', mlp_l2, kernel_size=16,
+            stride=8, output_dim=1, bias_term=False)
+        upsample32s = deconv('upsample32s', upsample8s, kernel_size=8,
+            stride=4, output_dim=1, bias_term=False)
+
+    return upsample32s
