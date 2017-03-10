@@ -63,7 +63,7 @@ imcrop_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 3])
 label_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 1])
 
 # Outputs
-scores = segmodel.text_objseg_upsample32s(text_seq_batch, imcrop_batch,
+scores = segmodel.text_objseg_upsample32s_global_context(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=vgg_dropout, mlp_dropout=mlp_dropout)
 
