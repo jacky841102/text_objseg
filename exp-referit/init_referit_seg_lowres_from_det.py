@@ -8,8 +8,8 @@ from models import text_objseg_model as segmodel
 # Parameters
 ################################################################################
 
-det_model = './exp-referit/tfmodel/referit_fc8_det_iter_25000.tfmodel'
-seg_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
+det_model = './exp-referit/tfmodel/referit_fc8_det_iter_25000_global_context.tfmodel'
+seg_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init_global_context.tfmodel'
 
 # Model Params
 T = 20
@@ -30,7 +30,7 @@ imcrop_batch = tf.placeholder(tf.float32, [N, 224, 224, 3])
 spatial_batch = tf.placeholder(tf.float32, [N, 8])
 
 # Language feature (LSTM hidden state)
-_ = segmodel.text_objseg_region(text_seq_batch, imcrop_batch,
+_ = segmodel.text_objseg_region_global_context(text_seq_batch, imcrop_batch,
     spatial_batch, num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=False, mlp_dropout=False)
 
@@ -51,7 +51,7 @@ tf.reset_default_graph()
 text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
 imcrop_batch = tf.placeholder(tf.float32, [N, 512, 512, 3])
 
-_ = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
+_ = segmodel.text_objseg_full_conv_global_context(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=False, mlp_dropout=False)
 

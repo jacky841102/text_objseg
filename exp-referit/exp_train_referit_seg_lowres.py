@@ -24,7 +24,7 @@ lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
+pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init_global_context.tfmodel'
 
 # Training Params
 pos_loss_mult = 1.
@@ -48,7 +48,7 @@ data_prefix = 'referit_train_seg'
 
 # Snapshot Params
 snapshot = 5000
-snapshot_file = './exp-referit/tfmodel/referit_fc8_seg_lowres_iter_%d.tfmodel'
+snapshot_file = './exp-referit/tfmodel/referit_fc8_seg_lowres_iter_%d_global_context.tfmodel'
 
 ################################################################################
 # The model
@@ -60,7 +60,7 @@ imcrop_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 3])
 label_batch = tf.placeholder(tf.float32, [N, featmap_H, featmap_W, 1])
 
 # Outputs
-scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
+scores = segmodel.text_objseg_full_conv_global_context(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=vgg_dropout, mlp_dropout=mlp_dropout)
 
