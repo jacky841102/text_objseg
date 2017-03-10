@@ -54,36 +54,36 @@ def lstm_layer(name, seq_bottom, const_bottom, output_dim, num_layers=1,
     # Other details in tensorflow/python/ops/rnn_cell.py
     with tf.variable_scope(name):
         # the basic LSTM cell
-        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(output_dim, forget_bias)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(output_dim, forget_bias)
         # Apply dropout if specified.
         if apply_dropout and keep_prob < 1:
-            lstm_cell = tf.nn.rnn_cell.DropoutWrapper(
+            lstm_cell = tf.contrib.rnn.DropoutWrapper(
                 lstm_cell, output_keep_prob=keep_prob)
-        cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * num_layers)
+        cell = tf.contrib.rnn.MultiRNNCell([lstm_cell] * num_layers)
 
         # Initialize cell state from zero.
         initial_state = cell.zero_state(batch_size, tf.float32)
         # Fix batch_size issue when batch_size == 1
-        state_shape = initial_state.get_shape().as_list()
-        state_shape[0] = batch_size
-        initial_state.set_shape(state_shape)
+        # state_shape = initial_state.get_shape().as_list()
+        # state_shape[0] = batch_size
+        # initial_state.set_shape(state_shape)
 
         # Split along time dimension and flatten each component.
         # `inputs` is a list.
         inputs = [tf.reshape(input_, [batch_size, -1])
-            for input_ in tf.split(0, num_steps, seq_bottom)]
+            for input_ in tf.split(axis=0, num_or_size_splits=num_steps, value=seq_bottom)]
         # Add constant input to each time step.
         if not const_bottom is None:
             # Flatten const_bottom into shape [N, D_const] and concatenate.
             const_input_ = tf.reshape(const_bottom, [batch_size, -1])
-            inputs = [tf.concat(0, [input_, const_input_])
+            inputs = [tf.concat(axis=0, values=[input_, const_input_])
                 for input_ in inputs]
 
         # Create the Recurrent Network and collect `outputs`. `states` are
         # ignored.
-        outputs, _ = tf.nn.rnn(cell, inputs, initial_state=initial_state)
+        outputs, _ = tf.contrib.rnn.static_rnn(cell, inputs, initial_state=initial_state)
         if concat_output:
             # Concat the outputs into [T, N, D_out].
-            outputs = tf.reshape(tf.concat(0, outputs),
+            outputs = tf.reshape(tf.concat(axis=0, values=outputs),
                                 [num_steps, batch_size, output_dim])
     return outputs

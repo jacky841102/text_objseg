@@ -17,6 +17,7 @@ exp-referit/referit-dataset/*
 
 *.caffemodel
 *.tfmodel*
+demo/*
 
 *-Copy*.ipynb
 

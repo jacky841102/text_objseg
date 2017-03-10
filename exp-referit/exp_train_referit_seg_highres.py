@@ -5,6 +5,7 @@ import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 import tensorflow as tf
 import numpy as np
 
+print(tf.__version__)
 from models import text_objseg_model as segmodel
 from util import data_reader
 from util import loss
@@ -24,7 +25,7 @@ lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_highres_init.tfmodel'
+pretrained_model = '../text_objseg/exp-referit/tfmodel/test/referit_fc8_seg_highres_init.tfmodel'
 
 # Training Params
 pos_loss_mult = 1.
@@ -36,6 +37,7 @@ lr_decay_rate = 0.1
 weight_decay = 0.0005
 momentum = 0.9
 max_iter = 18000
+#max_iter = 60
 
 fix_convnet = False
 vgg_dropout = False
@@ -43,12 +45,13 @@ mlp_dropout = False
 vgg_lr_mult = 1.
 
 # Data Params
-data_folder = './exp-referit/data/train_batch_seg/'
+data_folder = '../text_objseg/exp-referit/data/train_batch_seg/'
 data_prefix = 'referit_train_seg'
 
 # Snapshot Params
 snapshot = 6000
-snapshot_file = './exp-referit/tfmodel/referit_fc8_seg_highres_iter_%d.tfmodel'
+# snapshot = 1000
+snapshot_file = '../text_objseg/exp-referit/tfmodel/test/referit_fc8_seg_highres_iter_%d_test.tfmodel'
 
 ################################################################################
 # The model
@@ -111,12 +114,14 @@ global_step = tf.Variable(0, trainable=False)
 learning_rate = tf.train.exponential_decay(start_lr, global_step, lr_decay_step,
     lr_decay_rate, staircase=True)
 solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
+# solver = tf.train.AdamOptimizer(learning_rate=learning_rate, epsilon=1e-4)
 # Compute gradients
 grads_and_vars = solver.compute_gradients(total_loss, var_list=train_var_list)
 # Apply learning rate multiplication to gradients
-grads_and_vars = [((g if var_lr_mult[v] == 1 else tf.mul(var_lr_mult[v], g)), v)
+grads_and_vars = [((g if var_lr_mult[v] == 1 else tf.multiply(var_lr_mult[v], g)), v)
                   for g, v in grads_and_vars]
 # Apply gradients
+# with tf.device('/cpu:0'):
 train_step = solver.apply_gradients(grads_and_vars, global_step=global_step)
 
 ################################################################################
@@ -132,7 +137,7 @@ snapshot_saver = tf.train.Saver()
 sess = tf.Session()
 
 # Run Initialization operations
-sess.run(tf.initialize_all_variables())
+sess.run(tf.global_variables_initializer())
 snapshot_loader.restore(sess, pretrained_model)
 
 ################################################################################
