@@ -19,12 +19,16 @@ def text_objseg_region(text_seq_batch, imcrop_batch, spatial_batch, num_vocab,
     feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
 
     # Local image feature
-    feat_vis = deeplab.deeplab_fc8(imcrop_batch, 'deeplab', apply_dropout=deeplab_dropout)
+    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'deeplab', apply_dropout=deeplab_dropout)
+    input_dim = 1
+    for d in feat_vis.get_shape().as_list()[1:]:
+        input_dim *= d
+    feat_vis_flatten = tf.reshape(feat_vis, [-1, input_dim])
 
     # L2-normalize the features (except for spatial_batch)
     # and concatenate them
     feat_all = tf.concat(axis=1, values=[tf.nn.l2_normalize(feat_lang, 1),
-                             tf.nn.l2_normalize(feat_vis, 1),
+                             tf.nn.l2_normalize(feat_vis_flatten, 1),
                              spatial_batch])
 
     # MLP Classifier over concatenate feature

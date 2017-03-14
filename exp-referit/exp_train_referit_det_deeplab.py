@@ -59,7 +59,7 @@ label_batch = tf.placeholder(tf.float32, [N, 1])
 # Outputs
 scores = segmodel.text_objseg_region(text_seq_batch, imcrop_batch,
     spatial_batch, num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    vgg_dropout=vgg_dropout, mlp_dropout=mlp_dropout)
+    deeplab_dropout=deeplab_dropout, mlp_dropout=mlp_dropout)
 
 
 ################################################################################
@@ -86,7 +86,7 @@ for var in reg_var_list: print('\t%s' % var.name)
 print('Done.')
 
 # Collect learning rate for trainable variables
-var_lr_mult = {var: (vgg_lr_mult if var.name.startswith('deeplab') else 1.0)
+var_lr_mult = {var: (deeplab_lr_mult if var.name.startswith('deeplab') else 1.0)
                for var in train_var_list}
 print('Variable learning rate multiplication:')
 for var in train_var_list:
@@ -138,7 +138,7 @@ train_step = solver.apply_gradients(grads_and_vars, global_step=global_step)
 convnet_layers = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2',
                   'conv3_1', 'conv3_2', 'conv3_3',
                   'conv4_1', 'conv4_2', 'conv4_3',
-                  'conv5_1', 'conv5_2', 'conv5_3', 'fc6', 'fc7']
+                  'conv5_1', 'conv5_2', 'conv5_3', 'fc6', 'fc7', 'fc8_voc12']
 
 init_ops = []
 with open(convnet_params, 'r') as f:
@@ -146,15 +146,10 @@ with open(convnet_params, 'r') as f:
 
 with tf.variable_scope('deeplab', reuse=True):
     for l_name in convnet_layers:
+        print(l_name)
         assign_W = tf.assign(tf.get_variable(l_name + '/weights'), processed_params[l_name + '/w'])
         assign_B = tf.assign(tf.get_variable(l_name + '/biases'), processed_params[l_name + '/b'])
         init_ops += [assign_W, assign_B]
-
-    fc8_w = tf.get_variable('fc8/weights')
-    fc8_b = tf.get_variable('fc8/biases')
-    tf.assign(fc8_w, np.random.normal(0, fc8_std, fc8_w.get_shape().as_list()).astype(np.float32))
-    tf.assign(fc8_0, 0)
-    init_ops += [fc8_w, fc8_b]
 
 with tf.variable_scope('classifier', reuse=True):
     mlp_l1 = tf.get_variable('mlp_l1/weights')

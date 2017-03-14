@@ -48,26 +48,26 @@ def deeplab_pool5(input_batch, name):
             return pool5a
 
 
-def deeplab_fc8(input_batch, name, dropout=False):
+def deeplab_fc8(input_batch, name, apply_dropout=False):
     pool5a = deeplab_pool5(input_batch, name)
     with tf.variable_scope(name):
         fc6 = fc_relu('fc6', pool5a, output_dim=1024)
-        if dropout: fc6 = drop(fc6, 0.5)
+        if apply_dropout: fc6 = drop(fc6, 0.5)
 
         fc7 = fc_relu('fc7', fc6, output_dim=1024)
-        if dropout: fc7 = drop(fc7, 0.5)
-        fc8 = fc('fc8', fc7, output_dim=1000)
+        if apply_dropout: fc7 = drop(fc7, 0.5)
+        fc8 = fc('fc8', fc7, output_dim=21)
         return fc8
 
-def deeplab_fc8_conv(input_batch, name, dropout=False, output_dim=1000):
+def deeplab_fc8_full_conv(input_batch, name, apply_dropout=False, output_dim=21):
     pool5a = deeplab_pool5(input_batch, name)
     with tf.variable_scope(name):
         with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu, stride=1):
             fc6 = slim.conv2d(pool5a, 1024, [3, 3], rate=12, padding='SAME', scope='fc6')
-            if dropout: fc6 = tf.nn.dropout(fc6, 0.5)
+            if apply_dropout: fc6 = tf.nn.dropout(fc6, 0.5)
 
             fc7 = slim.conv2d(fc6, 1024, [1, 1], scope='fc7')
-            if dropout: fc7 = tf.nn.dropout(fc7, 0.5)
+            if apply_dropout: fc7 = tf.nn.dropout(fc7, 0.5)
 
         fc8 = slim.conv2d(fc7, output_dim, [1, 1], activation_fn=None, scope='fc8_voc12')
         return fc8
