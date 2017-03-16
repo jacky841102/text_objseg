@@ -3,6 +3,9 @@ from util import data_reader
 from util import loss
 from six.moves import cPickle
 import tensorflow as tf
+import numpy as np
+import sys
+import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 
 ################################################################################
 # Parameters
@@ -10,7 +13,7 @@ import tensorflow as tf
 
 # Model Params
 T = 20
-N = 50
+N = 5
 num_vocab = 8803
 embed_dim = 1000
 lstm_dim = 1000
@@ -183,34 +186,35 @@ decay = 0.99
 for n_iter in range(max_iter):
     # Read one batch
     batch = reader.read_batch()
-    text_seq_val = batch['text_seq_batch']
-    imcrop_val = batch['imcrop_batch'].astype(np.float32) - segmodel.vgg_net.channel_mean
-    spatial_batch_val = batch['spatial_batch']
-    label_val = batch['label_batch'].astype(np.float32)
+    for n_iter_i in range(0, 50, 5):
+        text_seq_val = batch['text_seq_batch'][:, n_iter_i:n_iter_i+5]
+        imcrop_val = batch['imcrop_batch'][n_iter_i:n_iter_i+5].astype(np.float32) - segmodel.vgg_net.channel_mean
+        spatial_batch_val = batch['spatial_batch'][n_iter_i:n_iter_i+5]
+        label_val = batch['label_batch'][n_iter_i:n_iter_i+5].astype(np.float32)
 
-    loss_mult_val = label_val * (pos_loss_mult - neg_loss_mult) + neg_loss_mult
+        loss_mult_val = label_val * (pos_loss_mult - neg_loss_mult) + neg_loss_mult
 
-    # Forward and Backward pass
-    scores_val, cls_loss_val, _, lr_val = sess.run([scores, cls_loss, train_step, learning_rate],
-        feed_dict={
-            text_seq_batch  : text_seq_val,
-            imcrop_batch    : imcrop_val,
-            spatial_batch   : spatial_batch_val,
-            label_batch     : label_val
-        })
-    cls_loss_avg = decay*cls_loss_avg + (1-decay)*cls_loss_val
-    print('\titer = %d, cls_loss (cur) = %f, cls_loss (avg) = %f, lr = %f'
-        % (n_iter, cls_loss_val, cls_loss_avg, lr_val))
+        # Forward and Backward pass
+        scores_val, cls_loss_val, _, lr_val = sess.run([scores, cls_loss, train_step, learning_rate],
+            feed_dict={
+                text_seq_batch  : text_seq_val,
+                imcrop_batch    : imcrop_val,
+                spatial_batch   : spatial_batch_val,
+                label_batch     : label_val
+            })
+        cls_loss_avg = decay*cls_loss_avg + (1-decay)*cls_loss_val
+        print('\titer = %d, cls_loss (cur) = %f, cls_loss (avg) = %f, lr = %f'
+            % (n_iter, cls_loss_val, cls_loss_avg, lr_val))
 
-    # Accuracy
-    accuracy_all, accuracy_pos, accuracy_neg = segmodel.compute_accuracy(scores_val, label_val)
-    avg_accuracy_all = decay*avg_accuracy_all + (1-decay)*accuracy_all
-    avg_accuracy_pos = decay*avg_accuracy_pos + (1-decay)*accuracy_pos
-    avg_accuracy_neg = decay*avg_accuracy_neg + (1-decay)*accuracy_neg
-    print('\titer = %d, accuracy (cur) = %f (all), %f (pos), %f (neg)'
-          % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
-    print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
-          % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
+        # Accuracy
+        accuracy_all, accuracy_pos, accuracy_neg = segmodel.compute_accuracy(scores_val, label_val)
+        avg_accuracy_all = decay*avg_accuracy_all + (1-decay)*accuracy_all
+        avg_accuracy_pos = decay*avg_accuracy_pos + (1-decay)*accuracy_pos
+        avg_accuracy_neg = decay*avg_accuracy_neg + (1-decay)*accuracy_neg
+        print('\titer = %d, accuracy (cur) = %f (all), %f (pos), %f (neg)'
+              % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
+        print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
+              % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
 
     # Save snapshot
     if (n_iter+1) % snapshot == 0 or (n_iter+1) == max_iter:

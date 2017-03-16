@@ -9,6 +9,8 @@ from models import text_objseg_model_deeplab as segmodel
 from util import data_reader
 from util import loss
 
+from six.moves import cPickle
+
 ################################################################################
 # Parameters
 ################################################################################
@@ -40,9 +42,9 @@ weight_decay = 0.0005
 momentum = 0.9
 max_iter = 30000
 
-fix_convnet = False
+fix_convnet = True 
 deeplab_dropout = False
-mlp_dropout = False
+mlp_dropout = True 
 deeplab_lr_mult = 1.
 
 # Data Params
@@ -65,7 +67,7 @@ label_batch = tf.placeholder(tf.float32, [N, featmap_H, featmap_W, 1])
 # Outputs
 scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    apply_dropout=deeplab_dropout, mlp_dropout=mlp_dropout)
+    deeplab_dropout=deeplab_dropout, mlp_dropout=mlp_dropout)
 
 ################################################################################
 # Collect trainable variables, regularized variables and learning rates
@@ -138,7 +140,6 @@ with open(convnet_params, 'r') as f:
 
 with tf.variable_scope('deeplab', reuse=True):
     for l_name in convnet_layers:
-        print(l_name)
         assign_W = tf.assign(tf.get_variable(l_name + '/weights'), processed_params[l_name + '/w'])
         assign_B = tf.assign(tf.get_variable(l_name + '/biases'), processed_params[l_name + '/b'])
         init_ops += [assign_W, assign_B]
@@ -162,16 +163,6 @@ sess = tf.Session()
 # Run Initialization operations
 sess.run(tf.global_variables_initializer())
 sess.run(tf.group(*init_ops))
-
-# Load data
-reader = data_reader.DataReader(data_folder, data_prefix)
-
-snapshot_saver = tf.train.Saver()
-sess = tf.Session()
-
-# Run Initialization operations
-sess.run(tf.global_variables_initializer())
-snapshot_loader.restore(sess, pretrained_model)
 
 ################################################################################
 # Optimization loop
