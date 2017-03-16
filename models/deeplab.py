@@ -9,6 +9,8 @@ from util.cnn import pooling_layer as pool
 from util.cnn import fc_layer as fc
 from util.cnn import fc_relu_layer as fc_relu
 
+channel_mean = np.array([123.68, 116.779, 103.939], dtype=np.float32)
+
 # The DeepLab-LargeFOV model can be represented as follows:
 ## input -> [conv-relu](dilation=1, channels=64) x 2 -> [max_pool](stride=2)
 ##       -> [conv-relu](dilation=1, channels=128) x 2 -> [max_pool](stride=2)

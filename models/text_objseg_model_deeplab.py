@@ -46,7 +46,7 @@ def text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
     feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
 
     # Local image feature
-    feat_vis = vgg_net.vgg_fc8_full_conv(imcrop_batch, 'vgg_local',
+    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'vgg_local',
         apply_dropout=vgg_dropout)
 
     # Reshape and tile LSTM top
