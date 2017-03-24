@@ -16,7 +16,7 @@ def text_objseg_region(text_seq_batch, imcrop_batch, spatial_batch, num_vocab,
     embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
 
     # Language feature (LSTM hidden state)
-    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
+    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)[0]
 
     # Local image feature
     feat_vis = vgg_net.vgg_fc8(imcrop_batch, 'vgg_local', apply_dropout=vgg_dropout)
@@ -39,7 +39,7 @@ def text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
     lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
 
     # Language feature (LSTM hidden state)
-    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
+    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)[0]
 
     # Local image feature
     feat_vis = vgg_net.vgg_fc8_full_conv(imcrop_batch, 'vgg_local',
@@ -72,30 +72,6 @@ def text_objseg_upsample32s(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
 
     mlp_l2 = text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab,
         embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout)
-
-    # MLP Classifier over concatenate feature
-    with tf.variable_scope('classifier'):
-        # bilinear upsampling (no bias)
-        #upsample32s = deconv('upsample32s', mlp_l2, kernel_size=64,
-        #    stride=32, output_dim=1, bias_term=False)
-        upsample8s = deconv('upsample8s', mlp_l2, kernel_size=16,
-            stride=8, output_dim=1, bias_term=False)
-        upsample32s = deconv('upsample32s', upsample8s, kernel_size=8,
-            stride=4, output_dim=1, bias_term=False)
-
-    return upsample32s
-
-def text_objseg_upsample32s_global_context(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
-    lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
-
-    mlp_l2 = text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab,
-        embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout)
-
-    with tf.variable_scope('global_context'):
-        avg_1x1 = tf.contrib.slim.avg_pool2d(mlp_l2, [mlp_l2.get_shape()[1],
-            mlp_l2.get_shape()[2]])
-        avg_1x1_norm = tf.contrib.slim.unit_norm(avg_1x1, 3)
-        unpool_avg_norm = tf.tile(avg_1x1_norm, [1, 16, 16, 1])
 
     # MLP Classifier over concatenate feature
     with tf.variable_scope('classifier'):
