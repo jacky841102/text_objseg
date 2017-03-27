@@ -103,14 +103,14 @@ def mlstm_layer(name, seq_bottom, const_bottom, output_dim, num_layers=1,
         # cell = tf.contrib.rnn.MultiRNNCell([mlstm_cell] * num_layers)
         new_state = cell.zero_state(batch_size, tf.float32)
 
-    inputs = tf.transpose(seq_bottom, [1, 0, 2, 3, 4])
-    
-    outputs = []
-    for i in range(num_steps):
-        output, new_state = cell(inputs[i], new_state, name)
-        if i == 0:
-            tf.get_variable_scope().reuse_variables()
-        outputs.append(output)
+        inputs = tf.transpose(seq_bottom, [1, 0, 2, 3, 4])
+        
+        outputs = []
+        for i in range(num_steps):
+            output, new_state = cell(inputs[i], new_state, name)
+            if i == 0:
+                tf.get_variable_scope().reuse_variables()
+            outputs.append(output)
 
     return outputs[-1], outputs
 
