@@ -99,7 +99,7 @@ def mlstm_layer(name, seq_bottom, const_bottom, output_dim, num_layers=1,
     # input_list = [tf.squeeze(p_input_, [0]) for input_ in input_list]
     with tf.variable_scope(name):
         # cell = ConvLSTMCell(output_dim)
-        cell = BasicConvLSTMCell((H, W), (3, 3), output_dim)
+        cell = BasicConvLSTMCell((H, W), (1, 1), output_dim)
         # cell = tf.contrib.rnn.MultiRNNCell([mlstm_cell] * num_layers)
         new_state = cell.zero_state(batch_size, tf.float32)
 

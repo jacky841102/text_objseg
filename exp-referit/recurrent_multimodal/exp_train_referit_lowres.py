@@ -2,48 +2,50 @@ import tensorflow as tf
 from models import recurrent_multimodal as segmodel
 import numpy as np
 import cPickle
+import sys
+import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 from util import data_reader
 from util import loss
 
 # Model Params
 T = 20
-N = 10
-input_H = 512; featmap_H = (input_H // 8)
-input_W = 512; featmap_W = (input_W // 8)
+N = 1
+input_H = 320; featmap_H = (input_H // 8)
+input_W = 320; featmap_W = (input_W // 8)
 num_vocab = 8803
 embed_dim = 1000
 lstm_dim = 1000
-mlp_hidden_dims = 500
+mlp_hidden_dims = 100
 
 # Initialization Params
 with open('./models/convert_caffemodel/params/deeplab_weights.ckpt', 'r') as f:
     pretrained_weights = cPickle.load(f)
-mlp_l1_std = 0.05
+mlp_l1_std = 0.1
 mlp_l2_std = 0.1
 
 # Training Params
-pos_loss_mult = 1.
+pos_loss_mult = 5.
 neg_loss_mult = 1.
 
-start_lr = 0.01
+start_lr = 0.00025
 lr_decay_step = 10000
-lr_decay_rate = 0.1
+lr_decay_rate = 1
 weight_decay = 0.0005
 momentum = 0.9
-max_iter = 30000
+max_iter = 18000
 
 fix_convnet = False
-vgg_dropout = False
+feature_vis_dropout = True
 mlp_dropout = False
 deeplab_lr_mult = 1.
 
 # Data Params
-data_folder = './exp-referit/data/train_batch_seg/'
+data_folder = './exp-referit/data/RMI/train_batch_seg/'
 data_prefix = 'referit_train_seg'
 
 # Snapshot Params
 snapshot = 5000
-snapshot_file = './exp-referit/tfmodel/referit_fc8_seg_lowres_iter_%d.tfmodel'
+snapshot_file = './exp-referit/tfmodel/RMI/referit_fc8_seg_lowres2_iter_%d.tfmodel'
 
 ################################################################################
 # detection network
@@ -57,14 +59,17 @@ label_batch = tf.placeholder(tf.float32, [N, featmap_H, featmap_W, 1])
 # Language feature (LSTM hidden state)
 scores = segmodel.recurrent_multimodal(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    feature_vis_dropout=False, mlp_dropout=False)
+    feature_vis_dropout=feature_vis_dropout, mlp_dropout=False)
 
 
+#train_var_list = [var for var in tf.trainable_variables() 
+#                    if not var.name.startswith('deeplab/') or var.name.startswith('deeplab/fc8')]
 train_var_list = [var for var in tf.trainable_variables() 
                     if not var.name.startswith('deeplab/conv')]
 
 print('Collecting variables to train:')
-for var in train_var_list: print('\t%s' % var.name)
+for var in train_var_list:
+    print('\t%s' % var.name)
 print('Done.')
 
 # Add regularization to weight matrices (excluding bias)
@@ -98,7 +103,8 @@ total_loss = cls_loss + reg_loss
 global_step = tf.Variable(0, trainable=False)
 learning_rate = tf.train.exponential_decay(start_lr, global_step, lr_decay_step,
     lr_decay_rate, staircase=True)
-solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
+# solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
+solver = tf.train.AdamOptimizer(learning_rate=learning_rate)
 # Compute gradients
 grads_and_vars = solver.compute_gradients(total_loss, var_list=train_var_list)
 # Apply learning rate multiplication to gradients
@@ -120,21 +126,38 @@ convnet_layers = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2',
 with tf.variable_scope('deeplab', reuse=True):
     for l_name in convnet_layers:
         if l_name == 'fc8_voc12':
-            assign_W = tf.get_variable(l_name + 'weights',
-                        initializer=tf.contrib.layers.xavier_initializer())
-            assign_B = tf.get_variable(l_name + 'biases',
-                        initializer=tf.contrib.layers.xavier_initializer())
+            continue
+            #assign_W = tf.get_variable(l_name + '/weights',
+            #            initializer=tf.contrib.layers.xavier_initializer())
+            #assign_W = tf.get_variable(l_name + '/weights')
+            init_assign_W = tf.assign(assign_W, np.random.normal(
+                0, 1, assign_W.get_shape().as_list()).astype(np.float32))
+            #assign_B = tf.get_variable(l_name + '/biases',
+            #            initializer=tf.contrib.layers.xavier_initializer())
+            #assign_B = tf.get_variable(l_name + '/biases',
+            #            initializer=tf.contrib.layers.xavier_initializer())
+            init_assign_B = tf.assign(assign_B, np.random.normal(
+                0, 1, assign_B.get_shape().as_list()).astype(np.float32))
+            init_ops += [init_assign_W, init_assign_B]
         else:
             assign_W = tf.assign(tf.get_variable(l_name + '/weights'), pretrained_weights[l_name + '/w'])
             assign_B = tf.assign(tf.get_variable(l_name + '/biases'), pretrained_weights[l_name + '/b'])
-        init_ops += [assign_W, assign_B]
+            init_ops += [assign_W, assign_B]
 
 with tf.variable_scope('classifier', reuse=True):
     mlp_l1 = tf.get_variable('mlp_l1/weights')
-    init_mlp_l1 = tf.assign(mlp_l1, np.random.normal(
-        0, mlp_l1_std, mlp_l1.get_shape().as_list()).astype(np.float32))
+    init_mlp_l1 = tf.assign(mlp_l1, np.tile(np.random.normal(
+        0, mlp_l1_std, [1, 1, 1, 1]), [1, 1, 500, 1]))
+    #mlp_l2 = tf.get_variable('mlp_l2/weights')
+    #init_mlp_l2 = tf.assign(mlp_l2, np.random.normal(
+    #    0, mlp_l2_std, mlp_l2.get_shape().as_list()).astype(np.float32))
+    
+pretrained_weights.clear()
 
 init_ops += [init_mlp_l1]
+
+# Load data
+reader = data_reader.DataReader(data_folder, data_prefix)
 
 snapshot_saver = tf.train.Saver()
 sess = tf.Session()
@@ -159,25 +182,26 @@ for n_iter in range(max_iter):
     label_val = batch['label_coarse_batch'].astype(np.float32)
 
     # Forward and Backward pass
-    scores_val, cls_loss_val, _, lr_val = sess.run([scores, cls_loss, train_step, learning_rate],
-        feed_dict={
-            text_seq_batch  : text_seq_val,
-            imcrop_batch    : imcrop_val,
-            label_batch     : label_val
-        })
-    cls_loss_avg = decay*cls_loss_avg + (1-decay)*cls_loss_val
-    print('\titer = %d, cls_loss (cur) = %f, cls_loss (avg) = %f, lr = %f'
-        % (n_iter, cls_loss_val, cls_loss_avg, lr_val))
+    for i in range(0, 10, N):
+        scores_val, cls_loss_val, _, lr_val = sess.run([scores, cls_loss, train_step, learning_rate],
+          feed_dict={
+              text_seq_batch  : text_seq_val[:, i:i+N],
+              imcrop_batch    : imcrop_val[i:i+N],
+              label_batch     : label_val[i:i+N]
+           })
+        ls_loss_avg = decay*cls_loss_avg + (1-decay)*cls_loss_val
+        print('\titer = %d, cls_loss (cur) = %f, cls_loss (avg) = %f, lr = %f'
+            % (n_iter, cls_loss_val, cls_loss_avg, lr_val))
 
     # Accuracy
-    accuracy_all, accuracy_pos, accuracy_neg = segmodel.compute_accuracy(scores_val, label_val)
-    avg_accuracy_all = decay*avg_accuracy_all + (1-decay)*accuracy_all
-    avg_accuracy_pos = decay*avg_accuracy_pos + (1-decay)*accuracy_pos
-    avg_accuracy_neg = decay*avg_accuracy_neg + (1-decay)*accuracy_neg
-    print('\titer = %d, accuracy (cur) = %f (all), %f (pos), %f (neg)'
-          % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
-    print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
-          % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
+        accuracy_all, accuracy_pos, accuracy_neg = segmodel.compute_accuracy(scores_val, label_val)
+        avg_accuracy_all = decay*avg_accuracy_all + (1-decay)*accuracy_all
+        avg_accuracy_pos = decay*avg_accuracy_pos + (1-decay)*accuracy_pos
+        avg_accuracy_neg = decay*avg_accuracy_neg + (1-decay)*accuracy_neg
+        print('\titer = %d, accuracy (cur) = %f (all), %f (pos), %f (neg)'
+              % (n_iter, accuracy_all, accuracy_pos, accuracy_neg))
+        print('\titer = %d, accuracy (avg) = %f (all), %f (pos), %f (neg)'
+              % (n_iter, avg_accuracy_all, avg_accuracy_pos, avg_accuracy_neg))
 
     # Save snapshot
     if (n_iter+1) % snapshot == 0 or (n_iter+1) >= max_iter:

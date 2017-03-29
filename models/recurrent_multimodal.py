@@ -15,7 +15,7 @@ def recurrent_multimodal(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
     _, feat_langs, embedded_seq = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
 
     # feat_vis = vgg_net.vgg_fc8_full_conv(imcrop_batch, 'vgg_local', apply_dropout=vgg_dropout)
-    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'deeplab', output_dim=1000)
+    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'deeplab', feature_vis_dropout, output_dim=1000)
 
     featmap_H, featmap_W = feat_vis.get_shape().as_list()[1:3]
 
@@ -34,7 +34,8 @@ def recurrent_multimodal(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
     #concat all features
     feat_alls = []
     for i in range(T):
-        feat_alls.append(tf.concat([feat_langs[i], embedded_seq[i], feat_vis, spatial_batch], 3))
+        feat_alls.append(tf.concat([tf.nn.l2_normalize(feat_langs[i], 3), tf.nn.l2_normalize(feat_vis, 3), spatial_batch], 3))
+        #feat_alls.append(tf.concat([feat_langs[i], feat_vis, spatial_batch], 3))
     
     feat_all = tf.stack(feat_alls, 3)
     feat_all = tf.transpose(feat_all, [0, 3, 1, 2, 4])
@@ -49,8 +50,8 @@ def recurrent_multimodal(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
     with tf.variable_scope('classifier'):
         mlp_l1 = conv('mlp_l1', mlstm_top, kernel_size=1, stride=1,
             output_dim=1)
-        # if mlp_dropout: mlp_l1 = drop(mlp_l1, 0.5)
-        # mlp_l2 = conv('mlp_l2', mlp_l1, kernel_size=1, stride=1, output_dim=1)
+        #if mlp_dropout: mlp_l1 = drop(mlp_l1, 0.5)
+        #mlp_l2 = conv('mlp_l2', mlp_l1, kernel_size=1, stride=1, output_dim=1)
 
     return mlp_l1
 
