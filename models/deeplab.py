@@ -58,10 +58,10 @@ def deeplab_fc8(input_batch, name, apply_dropout=False):
 
         fc7 = fc_relu('fc7', fc6, output_dim=1024)
         if apply_dropout: fc7 = drop(fc7, 0.5)
-        fc8 = fc('fc8', fc7, output_dim=21)
+        fc8 = fc('fc8', fc7, output_dim=1000)
         return fc8
 
-def deeplab_fc8_full_conv(input_batch, name, apply_dropout=False, output_dim=21):
+def deeplab_fc8_full_conv(input_batch, name, apply_dropout=False, output_dim=1000):
     pool5a = deeplab_pool5(input_batch, name)
     with tf.variable_scope(name):
         with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu, stride=1):

@@ -26,7 +26,7 @@ lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-# pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
+pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
 convnet_params = './models/convert_caffemodel/params/deeplab_weights.ckpt'
 mlp_l1_std = 0.05
 mlp_l2_std = 0.1
@@ -42,9 +42,9 @@ weight_decay = 0.0005
 momentum = 0.9
 max_iter = 30000
 
-fix_convnet = True 
+# fix_convnet = False
 deeplab_dropout = False
-mlp_dropout = True 
+mlp_dropout = False
 deeplab_lr_mult = 1.
 
 # Data Params
@@ -74,12 +74,12 @@ scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
 ################################################################################
 
 # Only train the fc layers of convnet and keep conv layers fixed
-if fix_convnet:
-    train_var_list = [var for var in tf.trainable_variables()
-                      if not var.name.startswith('deeplab/')]
-else:
-    train_var_list = [var for var in tf.trainable_variables()
-                      if not var.name.startswith('deeplab/conv')]
+# if fix_convnet:
+train_var_list = [var for var in tf.trainable_variables()
+                      if var.name.startswith('deeplab/fc8')]
+# else:
+#     train_var_list = [var for var in tf.trainable_variables()
+#                       if not var.name.startswith('deeplab/conv')]
 print('Collecting variables to train:')
 for var in train_var_list: print('\t%s' % var.name)
 print('Done.')
@@ -127,33 +127,6 @@ train_step = solver.apply_gradients(grads_and_vars, global_step=global_step)
 ################################################################################
 # Initialize parameters and load data
 ################################################################################
-
-# fc8 need to be trained 
-convnet_layers = ['conv1_1', 'conv1_2', 'conv2_1', 'conv2_2',
-                  'conv3_1', 'conv3_2', 'conv3_3',
-                  'conv4_1', 'conv4_2', 'conv4_3',
-                  'conv5_1', 'conv5_2', 'conv5_3', 'fc6', 'fc7', 'fc8_voc12']
-
-init_ops = []
-with open(convnet_params, 'r') as f:
-    processed_params = cPickle.load(f)
-
-with tf.variable_scope('deeplab', reuse=True):
-    for l_name in convnet_layers:
-        assign_W = tf.assign(tf.get_variable(l_name + '/weights'), processed_params[l_name + '/w'])
-        assign_B = tf.assign(tf.get_variable(l_name + '/biases'), processed_params[l_name + '/b'])
-        init_ops += [assign_W, assign_B]
-
-with tf.variable_scope('classifier', reuse=True):
-    mlp_l1 = tf.get_variable('mlp_l1/weights')
-    mlp_l2 = tf.get_variable('mlp_l2/weights')
-    init_mlp_l1 = tf.assign(mlp_l1, np.random.normal(
-        0, mlp_l1_std, mlp_l1.get_shape().as_list()).astype(np.float32))
-    init_mlp_l2 = tf.assign(mlp_l2, np.random.normal(
-        0, mlp_l2_std, mlp_l2.get_shape().as_list()).astype(np.float32))
-
-init_ops += [init_mlp_l1, init_mlp_l2]
-
 # Load data
 reader = data_reader.DataReader(data_folder, data_prefix)
 
@@ -162,7 +135,7 @@ sess = tf.Session()
 
 # Run Initialization operations
 sess.run(tf.global_variables_initializer())
-sess.run(tf.group(*init_ops))
+snapshot_loader.restore(sess, pretrained_model)
 
 ################################################################################
 # Optimization loop
