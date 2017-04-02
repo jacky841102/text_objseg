@@ -26,7 +26,7 @@ lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-pretrained_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
+pretrained_model = './exp-referit/tfmodel/deeplab/referit_fc8_seg_lowres_init.tfmodel'
 convnet_params = './models/convert_caffemodel/params/deeplab_weights.ckpt'
 mlp_l1_std = 0.05
 mlp_l2_std = 0.1
@@ -35,7 +35,7 @@ mlp_l2_std = 0.1
 pos_loss_mult = 1.
 neg_loss_mult = 1.
 
-start_lr = 0.01
+start_lr = 0.005
 lr_decay_step = 10000
 lr_decay_rate = 0.1
 weight_decay = 0.0005
@@ -76,7 +76,7 @@ scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
 # Only train the fc layers of convnet and keep conv layers fixed
 # if fix_convnet:
 train_var_list = [var for var in tf.trainable_variables()
-                      if var.name.startswith('deeplab/fc8')]
+                      if var.name.startswith('deeplab/fc') or var.name.startswith('classifier')]
 # else:
 #     train_var_list = [var for var in tf.trainable_variables()
 #                       if not var.name.startswith('deeplab/conv')]
@@ -127,6 +127,8 @@ train_step = solver.apply_gradients(grads_and_vars, global_step=global_step)
 ################################################################################
 # Initialize parameters and load data
 ################################################################################
+snapshot_loader = tf.train.Saver(tf.trainable_variables())
+
 # Load data
 reader = data_reader.DataReader(data_folder, data_prefix)
 
