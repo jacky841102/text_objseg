@@ -11,7 +11,7 @@ from six.moves import cPickle
 # Parameters
 ################################################################################
 
-fcn_seg_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_iter30000.tfmodel'
+fcn_seg_model = './exp-referit/tfmodel/referit_fc8_seg_lowres_init.tfmodel'
 seg_model = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_lowres_init.ckpt'
 pretrained_params = './models/convert_caffemodel/params/deeplab_resnet_init.ckpt'
 
@@ -38,7 +38,7 @@ print('Loading deeplab101 weights')
 #output
 net = deeplab101.DeepLabResNetModel({'data': imcrop_batch}, is_training=True)
 
-#pretrained fc1_voc12 is 21 channel, we need 1000 channel
+# pretrained fc1_voc12 is 21 channel, we need 1000 channel
 restored_var = [var for var in tf.global_variables() if 'fc1_voc12' not in var.name]
 
 
@@ -54,13 +54,19 @@ print("done")
 # Clear the graph
 tf.reset_default_graph()
 
+# Inputs
+text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
+imcrop_batch = tf.placeholder(tf.float32, [N, 320, 320, 3])
+
 print('Loading fcn segmodel weights')
 
 _ = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     vgg_dropout=False, mlp_dropout=False)
 
+snapshot_loader = tf.train.Saver()
 with tf.Session() as sess:
+    snapshot_loader.restore(sess, fcn_seg_model)
     for var in tf.global_variables():
         if var.name.startswith('vgg'):
             continue
