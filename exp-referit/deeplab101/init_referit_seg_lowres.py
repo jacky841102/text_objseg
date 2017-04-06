@@ -81,9 +81,9 @@ text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
 imcrop_batch = tf.placeholder(tf.float32, [N, 320, 320, 3])
 print('Saving deeplab101 segmodel weights')
 
-_ = segmodel101.text.text_objseg_full_conv(text_seq_batch, imcrop_batch,
+_ = segmodel101.text_objseg_full_conv(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    vgg_dropout=False, mlp_dropout=False, is_training=True)
+    deeplab_dropout=False, mlp_dropout=False, is_training=True)
 
 # Assign outputs
 assign_ops = []
