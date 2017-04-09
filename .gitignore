@@ -3,6 +3,8 @@
 *.pyc
 *.npy
 *.npz
+*.png
+*.jpg
 *-checkpoint.ipynb
 *~
 *.swp
@@ -14,6 +16,7 @@ exp-*/caffemodel/*
 exp-*/tfmodel/*
 exp-*/__obsolete__/*
 exp-referit/referit-dataset/*
+result/*
 
 *.caffemodel
 *.tfmodel*
@@ -22,3 +25,4 @@ demo/*
 *-Copy*.ipynb
 
 checkpoint
+models/convert_caffemodel/*

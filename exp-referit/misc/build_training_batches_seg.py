@@ -21,14 +21,14 @@ imsize_file = './exp-referit/data/referit_imsize.json'
 vocab_file = './exp-referit/data/vocabulary_referit.txt'
 
 # Saving directory
-data_folder = './exp-referit/data/train_batch_seg/'
+data_folder = './exp-referit/data/RMI/train_batch_seg/'
 data_prefix = 'referit_train_seg'
 
 # Model Params
 T = 20
 N = 10
-input_H = 512; featmap_H = (input_H // 32)
-input_W = 512; featmap_W = (input_W // 32)
+input_H = 320; featmap_H = (input_H // 8)
+input_W = 320; featmap_W = (input_W // 8)
 
 ################################################################################
 # Load annotations
@@ -89,7 +89,7 @@ for n_batch in range(num_batch):
         if processed_im.ndim == 2:
             processed_im = processed_im[:, :, np.newaxis]
         processed_mask = im_processing.resize_and_pad(mask, input_H, input_W)
-        subsampled_mask = skimage.transform.downscale_local_mean(processed_mask, (32, 32))
+        subsampled_mask = skimage.transform.downscale_local_mean(processed_mask, (8, 8))
 
         labels_fine = (processed_mask > 0)
         labels_coarse = (subsampled_mask > 0)

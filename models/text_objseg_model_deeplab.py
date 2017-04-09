@@ -9,22 +9,26 @@ from util.cnn import conv_relu_layer as conv_relu
 from util.cnn import deconv_layer as deconv
 from util.cnn import fc_layer as fc
 from util.cnn import fc_relu_layer as fc_relu
-from models import vgg_net, lstm_net
+from models import vgg_net, lstm_net, deeplab
 from models.processing_tools import *
 
 def text_objseg_region(text_seq_batch, imcrop_batch, spatial_batch, num_vocab,
-    embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
+    embed_dim, lstm_dim, mlp_hidden_dims, deeplab_dropout, mlp_dropout):
 
     # Language feature (LSTM hidden state)
-    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)[0]
+    feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)
 
     # Local image feature
-    feat_vis = vgg_net.vgg_fc8(imcrop_batch, 'vgg_local', apply_dropout=vgg_dropout)
+    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'deeplab', apply_dropout=deeplab_dropout)
+    input_dim = 1
+    for d in feat_vis.get_shape().as_list()[1:]:
+        input_dim *= d
+    feat_vis_flatten = tf.reshape(feat_vis, [-1, input_dim])
 
     # L2-normalize the features (except for spatial_batch)
     # and concatenate them
     feat_all = tf.concat(axis=1, values=[tf.nn.l2_normalize(feat_lang, 1),
-                             tf.nn.l2_normalize(feat_vis, 1),
+                             tf.nn.l2_normalize(feat_vis_flatten, 1),
                              spatial_batch])
 
     # MLP Classifier over concatenate feature
@@ -36,14 +40,14 @@ def text_objseg_region(text_seq_batch, imcrop_batch, spatial_batch, num_vocab,
     return mlp_l2
 
 def text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
-    lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
+    lstm_dim, mlp_hidden_dims, deeplab_dropout, mlp_dropout):
 
     # Language feature (LSTM hidden state)
     feat_lang = lstm_net.lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim)[0]
 
     # Local image feature
-    feat_vis = vgg_net.vgg_fc8_full_conv(imcrop_batch, 'vgg_local',
-        apply_dropout=vgg_dropout)
+    feat_vis = deeplab.deeplab_fc8_full_conv(imcrop_batch, 'deeplab',
+        apply_dropout=deeplab_dropout)
 
     # Reshape and tile LSTM top
     featmap_H, featmap_W = feat_vis.get_shape().as_list()[1:3]
@@ -67,11 +71,11 @@ def text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
 
     return mlp_l2
 
-def text_objseg_upsample32s(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
-    lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout):
+def text_objseg_upsample8s(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
+    lstm_dim, mlp_hidden_dims, deeplab_dropout, mlp_dropout):
 
     mlp_l2 = text_objseg_full_conv(text_seq_batch, imcrop_batch, num_vocab,
-        embed_dim, lstm_dim, mlp_hidden_dims, vgg_dropout, mlp_dropout)
+        embed_dim, lstm_dim, mlp_hidden_dims, deeplab_dropout, mlp_dropout)
 
     # MLP Classifier over concatenate feature
     with tf.variable_scope('classifier'):
@@ -80,7 +84,8 @@ def text_objseg_upsample32s(text_seq_batch, imcrop_batch, num_vocab, embed_dim,
         #    stride=32, output_dim=1, bias_term=False)
         upsample8s = deconv('upsample8s', mlp_l2, kernel_size=16,
             stride=8, output_dim=1, bias_term=False)
-        upsample32s = deconv('upsample32s', upsample8s, kernel_size=8,
-            stride=4, output_dim=1, bias_term=False)
+        #upsample32s = deconv('upsample32s', upsample8s, kernel_size=8,
+        #    stride=4, output_dim=1, bias_term=False)
 
-    return upsample32s
+    return upsample8s
+

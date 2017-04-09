@@ -14,5 +14,6 @@ def lstm_net(text_seq_batch, num_vocab, embed_dim, lstm_dim):
 
     lstm_top = lstm('lstm_lang', embedded_seq, None, output_dim=lstm_dim,
                     num_layers=1, forget_bias=1.0, apply_dropout=False,
-                    concat_output=False)[-1]
-    return lstm_top
+                    concat_output=False)
+
+    return lstm_top[-1], lstm_top, embedded_seq

@@ -5,10 +5,11 @@ import os; os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
 import tensorflow as tf
 import numpy as np
 
-print(tf.__version__)
-from models import text_objseg_model as segmodel
+from models import text_objseg_model_deeplab101 as segmodel
 from util import data_reader
 from util import loss
+
+from six.moves import cPickle
 
 ################################################################################
 # Parameters
@@ -17,41 +18,41 @@ from util import loss
 # Model Params
 T = 20
 N = 10
-input_H = 512; featmap_H = (input_H // 32)
-input_W = 512; featmap_W = (input_W // 32)
+input_H = 320; featmap_H = (input_H // 8)
+input_W = 320; featmap_W = (input_W // 8)
 num_vocab = 8803
 embed_dim = 1000
 lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-pretrained_model = '../text_objseg/exp-referit/tfmodel/test/referit_fc8_seg_highres_init.tfmodel'
+pretrained_model = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_highres_init.tfmodel'
+mlp_l1_std = 0.05
+mlp_l2_std = 0.1
 
 # Training Params
 pos_loss_mult = 1.
-neg_loss_mult = 1. / 3
+neg_loss_mult = 1.
 
-start_lr = 0.01
+start_lr = 0.005
 lr_decay_step = 6000
 lr_decay_rate = 0.1
 weight_decay = 0.0005
 momentum = 0.9
 max_iter = 18000
-#max_iter = 60
 
-fix_convnet = False
-vgg_dropout = False
+# fix_convnet = False
+deeplab_dropout = False
 mlp_dropout = False
-vgg_lr_mult = 1.
+deeplab_lr_mult = 1.
 
 # Data Params
-data_folder = '../text_objseg/exp-referit/data/train_batch_seg/'
+data_folder = './exp-referit/data/RMI/train_batch_seg/'
 data_prefix = 'referit_train_seg'
 
 # Snapshot Params
 snapshot = 6000
-# snapshot = 1000
-snapshot_file = '../text_objseg/exp-referit/tfmodel/test/referit_fc8_seg_highres_iter_%d_test.tfmodel'
+snapshot_file = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_highres_iter_%d.tfmodel'
 
 ################################################################################
 # The model
@@ -63,21 +64,24 @@ imcrop_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 3])
 label_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 1])
 
 # Outputs
-scores = segmodel.text_objseg_upsample32s(text_seq_batch, imcrop_batch,
+scores = segmodel.text_objseg_upsample8s(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    vgg_dropout=vgg_dropout, mlp_dropout=mlp_dropout)
+    deeplab_dropout=deeplab_dropout, mlp_dropout=mlp_dropout, is_training=True)
 
 ################################################################################
 # Collect trainable variables, regularized variables and learning rates
 ################################################################################
 
 # Only train the fc layers of convnet and keep conv layers fixed
-if fix_convnet:
-    train_var_list = [var for var in tf.trainable_variables()
-                      if not var.name.startswith('vgg_local/')]
-else:
-    train_var_list = [var for var in tf.trainable_variables()
-                      if not var.name.startswith('vgg_local/conv')]
+# if fix_convnet:
+#train_var_list = [var for var in tf.trainable_variables()
+#                      if not var.name.startswith('deeplab/conv')]
+train_var_list = [var for var in tf.trainable_variables()
+                      if var.name.startswith('fc1_voc12') or var.name.startswith('classifier')
+                        or var.name.startswith('word_embedding') or var.name.startswith('lstm')]
+# else:
+#     train_var_list = [var for var in tf.trainable_variables()
+#                       if not var.name.startswith('deeplab/conv')]
 print('Collecting variables to train:')
 for var in train_var_list: print('\t%s' % var.name)
 print('Done.')
@@ -91,7 +95,7 @@ for var in reg_var_list: print('\t%s' % var.name)
 print('Done.')
 
 # Collect learning rate for trainable variables
-var_lr_mult = {var: (vgg_lr_mult if var.name.startswith('vgg_local') else 1.0)
+var_lr_mult = {var: (deeplab_lr_mult if var.name.startswith('deeplab') else 1.0)
                for var in train_var_list}
 print('Variable learning rate multiplication:')
 for var in train_var_list:
@@ -114,20 +118,17 @@ global_step = tf.Variable(0, trainable=False)
 learning_rate = tf.train.exponential_decay(start_lr, global_step, lr_decay_step,
     lr_decay_rate, staircase=True)
 solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
-# solver = tf.train.AdamOptimizer(learning_rate=learning_rate, epsilon=1e-4)
 # Compute gradients
 grads_and_vars = solver.compute_gradients(total_loss, var_list=train_var_list)
 # Apply learning rate multiplication to gradients
 grads_and_vars = [((g if var_lr_mult[v] == 1 else tf.multiply(var_lr_mult[v], g)), v)
                   for g, v in grads_and_vars]
 # Apply gradients
-# with tf.device('/cpu:0'):
 train_step = solver.apply_gradients(grads_and_vars, global_step=global_step)
 
 ################################################################################
 # Initialize parameters and load data
 ################################################################################
-
 snapshot_loader = tf.train.Saver(tf.trainable_variables())
 
 # Load data
@@ -152,7 +153,7 @@ for n_iter in range(max_iter):
     # Read one batch
     batch = reader.read_batch()
     text_seq_val = batch['text_seq_batch']
-    imcrop_val = batch['imcrop_batch'].astype(np.float32) - segmodel.vgg_net.channel_mean
+    imcrop_val = batch['imcrop_batch'].astype(np.float32) - segmodel.deeplab.channel_mean
     label_val = batch['label_fine_batch'].astype(np.float32)
 
     # Forward and Backward pass
