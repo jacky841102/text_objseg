@@ -24,7 +24,7 @@ imcrop_file = './exp-referit/data/referit_imcrop.json'
 imsize_file = './exp-referit/data/referit_imsize.json'
 vocab_file = './exp-referit/data/vocabulary_referit.txt'
 
-pretrained_model = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_lowres_iter_10000.tfmodel'
+pretrained_model = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_lowres_lstm_iter_30000.tfmodel'
 
 # Model Param
 T = 20

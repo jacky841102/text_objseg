@@ -26,8 +26,7 @@ lstm_dim = 1000
 mlp_hidden_dims = 500
 
 # Initialization Params
-init_model = './exp-referit/tfmodel/RMI/referit_fc8_seg_lowres_init.ckpt'
-#convnet_params = './models/convert_caffemodel/params/deeplab_weights.ckpt'
+pretrained_model = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_highres_init.tfmodel'
 mlp_l1_std = 0.05
 mlp_l2_std = 0.1
 
@@ -35,12 +34,12 @@ mlp_l2_std = 0.1
 pos_loss_mult = 1.
 neg_loss_mult = 1.
 
-start_lr = 0.00025
+start_lr = 0.005
 lr_decay_step = 6000
-lr_decay_rate = 1 
+lr_decay_rate = 0.1
 weight_decay = 0.0005
 momentum = 0.9
-max_iter = 30000
+max_iter = 18000
 
 # fix_convnet = False
 deeplab_dropout = False
@@ -52,8 +51,8 @@ data_folder = './exp-referit/data/RMI/train_batch_seg/'
 data_prefix = 'referit_train_seg'
 
 # Snapshot Params
-snapshot = 5000
-snapshot_file = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_lowres_lstm_iter_%d.tfmodel'
+snapshot = 6000
+snapshot_file = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_highres_iter_%d.tfmodel'
 
 ################################################################################
 # The model
@@ -62,10 +61,10 @@ snapshot_file = './exp-referit/tfmodel/deeplab101/referit_fc8_seg_lowres_lstm_it
 # Inputs
 text_seq_batch = tf.placeholder(tf.int32, [T, N])
 imcrop_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 3])
-label_batch = tf.placeholder(tf.float32, [N, featmap_H, featmap_W, 1])
+label_batch = tf.placeholder(tf.float32, [N, input_H, input_W, 1])
 
 # Outputs
-scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
+scores = segmodel.text_objseg_upsample8s(text_seq_batch, imcrop_batch,
     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
     deeplab_dropout=deeplab_dropout, mlp_dropout=mlp_dropout, is_training=True)
 
@@ -75,6 +74,8 @@ scores = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
 
 # Only train the fc layers of convnet and keep conv layers fixed
 # if fix_convnet:
+#train_var_list = [var for var in tf.trainable_variables()
+#                      if not var.name.startswith('deeplab/conv')]
 train_var_list = [var for var in tf.trainable_variables()
                       if var.name.startswith('fc1_voc12') or var.name.startswith('classifier')
                         or var.name.startswith('word_embedding') or var.name.startswith('lstm')]
@@ -116,8 +117,7 @@ total_loss = cls_loss + reg_loss
 global_step = tf.Variable(0, trainable=False)
 learning_rate = tf.train.exponential_decay(start_lr, global_step, lr_decay_step,
     lr_decay_rate, staircase=True)
-#solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
-solver = tf.train.AdamOptimizer(learning_rate=learning_rate)
+solver = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=momentum)
 # Compute gradients
 grads_and_vars = solver.compute_gradients(total_loss, var_list=train_var_list)
 # Apply learning rate multiplication to gradients
@@ -139,7 +139,7 @@ sess = tf.Session()
 
 # Run Initialization operations
 sess.run(tf.global_variables_initializer())
-snapshot_loader.restore(sess, init_model)
+snapshot_loader.restore(sess, pretrained_model)
 
 ################################################################################
 # Optimization loop
@@ -154,7 +154,7 @@ for n_iter in range(max_iter):
     batch = reader.read_batch()
     text_seq_val = batch['text_seq_batch']
     imcrop_val = batch['imcrop_batch'].astype(np.float32) - segmodel.deeplab.channel_mean
-    label_val = batch['label_coarse_batch'].astype(np.float32)
+    label_val = batch['label_fine_batch'].astype(np.float32)
 
     # Forward and Backward pass
     scores_val, cls_loss_val, _, lr_val = sess.run([scores, cls_loss, train_step, learning_rate],

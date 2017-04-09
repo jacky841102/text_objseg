@@ -53,28 +53,28 @@ print("done")
 
 # Clear the graph
 tf.reset_default_graph()
-
-# Inputs
-text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
-imcrop_batch = tf.placeholder(tf.float32, [N, 320, 320, 3])
-
-print('Loading fcn segmodel weights')
-
-_ = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
-    num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
-    vgg_dropout=False, mlp_dropout=False)
-
-snapshot_loader = tf.train.Saver()
-with tf.Session() as sess:
-    snapshot_loader.restore(sess, fcn_seg_model)
-    for var in tf.global_variables():
-        if var.name.startswith('vgg'):
-            continue
-        variable_dict[var.name] = var.eval(session=sess) 
-
-print('done')
-
-tf.reset_default_graph()
+ 
+# # Inputs
+# text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
+# imcrop_batch = tf.placeholder(tf.float32, [N, 320, 320, 3])
+# 
+# print('Loading fcn segmodel weights')
+# 
+# _ = segmodel.text_objseg_full_conv(text_seq_batch, imcrop_batch,
+#     num_vocab, embed_dim, lstm_dim, mlp_hidden_dims,
+#     vgg_dropout=False, mlp_dropout=False)
+# 
+# snapshot_loader = tf.train.Saver()
+# with tf.Session() as sess:
+#     snapshot_loader.restore(sess, fcn_seg_model)
+#     for var in tf.global_variables():
+#         if var.name.startswith('vgg'):
+#             continue
+#         variable_dict[var.name] = var.eval(session=sess) 
+# 
+# print('done')
+# 
+# tf.reset_default_graph()
 
 # Inputs
 text_seq_batch = tf.placeholder(tf.int32, [T, N])  # one batch per sentence
@@ -88,6 +88,8 @@ _ = segmodel101.text_objseg_full_conv(text_seq_batch, imcrop_batch,
 # Assign outputs
 assign_ops = []
 for var in tf.global_variables():
+    if var.name not in variable_dict:
+        continue
     assign_ops.append(tf.assign(var, variable_dict[var.name].reshape(var.get_shape().as_list())))
 
 # Save segmentation model initialization
